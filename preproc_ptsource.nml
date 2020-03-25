@@ -1,0 +1,25 @@
+&file_io
+
+	! Archivo de parAmetros de fuentes fijas
+	ptsource_param = ''
+	! Archivo de emisiones de fuentes fijas
+	ptsource_emiss = ''
+
+	! Archivo de salida de fuentes fijas en formato de CAMx6.20
+	ptsource_out   = ''
+
+/
+
+&projection
+
+	Map_Projection				= 'POLAR',		! (LAMBERT,POLAR)
+	UTM_Zone					= 0,
+	POLAR_Longitude_Pole		= -75.58,		! deg (west<0,south<0)
+	POLAR_Latitude_Pole			= 6.26,			! deg (west<0,south<0)
+	LAMBERT_Center_Longitude	= -97.,			! deg (west<0,south<0)
+	LAMBERT_Center_Latitude		=  40.,			! deg (west<0,south<0)
+	LAMBERT_True_Latitude1		=  33.,			! deg (west<0,south<0)
+	LAMBERT_True_Latitude2 		=  45.,			! deg (west<0,south<0, can be same as
+												!      LAMBERT_True_Latitude1)
+
+/
