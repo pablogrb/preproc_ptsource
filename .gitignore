@@ -4,3 +4,5 @@ preproc_ptsource
 *.mod
 # Precompilation output
 *.o
+# comma separated files
+*.csv
