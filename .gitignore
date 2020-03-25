@@ -1,0 +1,6 @@
+# Compiled exec
+preproc_ptsource
+# Compiled modules
+*.mod
+# Precompilation output
+*.o
