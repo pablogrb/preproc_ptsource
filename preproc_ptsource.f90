@@ -17,6 +17,7 @@ IMPLICIT NONE
 	! 	pablogrb@gmail.com
 	! 	UPB - GIA
 	! 	2020-03
+	! This program requires a F08 compatible compiler
 	! ------------------------------------------------------------------------------------------
 
 	! ------------------------------------------------------------------------------------------
@@ -43,11 +44,19 @@ IMPLICIT NONE
 	REAL :: LAMBERT_True_Latitude2					! deg (west<0,south<0, can be same as
 													!      LAMBERT_True_Latitude1)
 
+	! ptsource parameter vectors
+	INTEGER, ALLOCATABLE :: camx_id(:)				! ptsource id code from the inventory
+	REAL, ALLOCATABLE :: pt_lat(:), pt_lon(:)		! latitude and longitude of each source
+	REAL, ALLOCATABLE :: xstk(:), ystk(:)			! Stack location
+	REAL, ALLOCATABLE :: hstk(:), dstk(:)			! Stack height and diameter
+	REAL, ALLOCATABLE :: tstk(:), vstk(:)			! Stack temperature and velocity
 
-	! Argument control
+	! Control
 	INTEGER :: arg_num
 	CHARACTER(LEN=2) :: arg_switch
 	LOGICAL :: file_exists
+	INTEGER :: alloc_stat
+	INTEGER :: i_stk
 
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -106,5 +115,46 @@ IMPLICIT NONE
 	READ(param_unit,*) fl_out%nstk, fl_out%nspec
 	WRITE(0,'(A,I3)') 'Number of point sources: ', fl_out%nstk
 	WRITE(0,'(A,I3)') 'Number species: ', fl_out%nspec
+	! Skip column headers
+	READ(param_unit,*)
+
+	! Allocate the parameter vectors
+	ALLOCATE(camx_id(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(pt_lat(fl_out%nstk), pt_lon(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(xstk(fl_out%nstk), ystk(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(hstk(fl_out%nstk), dstk(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(tstk(fl_out%nstk), vstk(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+	! Read the parameter file while converting the lat lon to projection coordinates
+	DO i_stk = 1, fl_out%nstk
+		READ(param_unit,*) camx_id(i_stk), pt_lat(i_stk), pt_lon(i_stk), hstk(i_stk), dstk(i_stk), tstk(i_stk), vstk(i_stk)
+
+		! Switch by projection type
+		SELECT CASE (Map_Projection)
+		CASE ('LAMBERT')
+			CALL lcpgeo(0,LAMBERT_Center_Latitude,LAMBERT_Center_Longitude,LAMBERT_True_Latitude1, LAMBERT_True_Latitude2,xstk(i_stk),ystk(i_stk),pt_lon(i_stk),pt_lat(i_stk))
+		CASE ('POLAR')
+			CALL pspgeo(0,POLAR_Longitude_Pole,POLAR_Latitude_Pole,xstk(i_stk),ystk(i_stk),pt_lon(i_stk),pt_lat(i_stk))
+		CASE DEFAULT
+			WRITE(0,'(A)') 'Not a valid projection type'
+		END SELECT
+
+	END DO
 
 END PROGRAM preproc_ptsource
+
+SUBROUTINE check_alloc_stat(alloc_stat)
+
+	INTEGER, INTENT(IN) :: alloc_stat
+
+	IF ( alloc_stat .NE. 0 ) THEN
+		WRITE(0,'(A)') 'Error allocating parameter vectors, check available memory'
+		CALL EXIT(1)
+	END IF
+
+END SUBROUTINE check_alloc_stat
