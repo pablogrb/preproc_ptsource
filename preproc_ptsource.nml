@@ -1,9 +1,9 @@
 &file_io
 
 	! Archivo de parAmetros de fuentes fijas
-	ptsource_param = ''
+	ptsource_param = './pointsources_param.csv'
 	! Archivo de emisiones de fuentes fijas
-	ptsource_emiss = ''
+	ptsource_emiss = './pointsources_emisiones_.csv'
 
 	! Archivo de salida de fuentes fijas en formato de CAMx6.20
 	ptsource_out   = ''
