@@ -1,7 +1,12 @@
-FC = pgf90
+# FC = pgf90
+FC = gfortran
 
+# Flags for pgf90
 # FLAGS = -O3 -pc 64 -Kieee -Mdalign -Mextend -Mnoframe -byteswapio
-FLAGS = -g -pc 64 -Kieee -Mdalign -Mextend -Mnoframe -byteswapio
+# FLAGS = -g -pc 64 -Kieee -Mdalign -Mextend -Mnoframe -byteswapio
+
+# Flags for gfortran
+FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian
 
 TARGET = preproc_ptsource
 
