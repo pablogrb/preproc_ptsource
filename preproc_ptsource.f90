@@ -47,11 +47,11 @@ IMPLICIT NONE
 													!      LAMBERT_True_Latitude1)
 
 	! ptsource parameter vectors
-	INTEGER, ALLOCATABLE :: camx_id(:)				! ptsource id code from the inventory
+	INTEGER, ALLOCATABLE :: camx_id_par(:)				! ptsource id code from the inventory
 	REAL, ALLOCATABLE :: pt_lat(:), pt_lon(:)		! latitude and longitude of each source
-	! REAL, ALLOCATABLE :: xstk(:), ystk(:)			! Stack location
-	! REAL, ALLOCATABLE :: hstk(:), dstk(:)			! Stack height and diameter
-	! REAL, ALLOCATABLE :: tstk(:), vstk(:)			! Stack temperature and velocity
+
+	! emiss parameter vectors
+	INTEGER, ALLOCATABLE :: camx_id_emi(:)
 
 	! Control
 	INTEGER :: arg_num
@@ -59,7 +59,8 @@ IMPLICIT NONE
 	LOGICAL :: file_exists
 	INTEGER :: alloc_stat
 	INTEGER :: io_stat
-	INTEGER :: i_stk
+	INTEGER :: i_stk, i_nsp
+	CHARACTER(LEN=10) :: str_dummy
 
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -95,7 +96,7 @@ IMPLICIT NONE
 	IF (file_exists) THEN
 		WRITE(6,'(2A)') 'Using the control file ', TRIM(ctrlfile)
 	ELSE
-		WRITE(6,'(3A)') 'Control file ', TRIM(ctrlfile), ' does not exist'
+		WRITE(0,'(3A)') 'Control file ', TRIM(ctrlfile), ' does not exist'
 		CALL EXIT(0)
 	END IF
 
@@ -123,7 +124,7 @@ IMPLICIT NONE
 	READ(param_unit,*)
 
 	! Allocate the parameter vectors
-	ALLOCATE(camx_id(fl_out%nstk), STAT=alloc_stat)
+	ALLOCATE(camx_id_par(fl_out%nstk), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	ALLOCATE(pt_lat(fl_out%nstk), pt_lon(fl_out%nstk), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
@@ -136,7 +137,7 @@ IMPLICIT NONE
 
 	! Read the parameter file while converting the lat lon to projection coordinates
 	DO i_stk = 1, fl_out%nstk
-		READ(param_unit,*,IOSTAT=io_stat) camx_id(i_stk), pt_lat(i_stk), pt_lon(i_stk),&
+		READ(param_unit,*,IOSTAT=io_stat) camx_id_par(i_stk), pt_lat(i_stk), pt_lon(i_stk),&
 						& fl_out%hstk(i_stk), fl_out%dstk(i_stk),&
 						& fl_out%tstk(i_stk), fl_out%vstk(i_stk)
 		IF ( io_stat > 0 ) THEN
@@ -144,6 +145,7 @@ IMPLICIT NONE
 			CALL EXIT(0)
 		ELSE IF ( io_stat < 0 ) THEN
 			WRITE(0,'(A,I3,A,I3)') 'Unexpected end of file, expected ', fl_out%nstk, ' point sources, failed while reading no. ', i_stk
+			CALL EXIT(0)
 		END IF
 
 		! Switch by projection type
@@ -155,6 +157,7 @@ IMPLICIT NONE
 			CALL pspgeo(0,POLAR_Longitude_Pole,POLAR_Latitude_Pole,fl_out%xstk(i_stk),fl_out%ystk(i_stk),pt_lon(i_stk),pt_lat(i_stk))
 		CASE DEFAULT
 			WRITE(0,'(A)') 'Not a valid projection type'
+			CALL EXIT(0)
 		END SELECT
 	END DO
 
@@ -165,6 +168,18 @@ IMPLICIT NONE
 		WRITE(0,'(A)') 'Point source emissions file ', TRIM(ptsource_param), ' does not exist'
 		CALL EXIT(0)
 	END IF
+
+	! Read the ptsource parameter file
+	OPEN(NEWUNIT=emiss_unit, FILE=TRIM(ptsource_emiss),STATUS='OLD')
+	! Allocate the parameter vectors
+	ALLOCATE(fl_out%c_spname(fl_out%nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	! Read the the species list
+	READ(emiss_unit,*) str_dummy, str_dummy, (fl_out%c_spname(i_nsp), i_nsp = 1, fl_out%nspec)
+	! Diagnostic output of species list
+	DO i_nsp = 1, fl_out%nspec
+		WRITE(*,*) fl_out%c_spname(i_nsp)
+	END DO
 
 END PROGRAM preproc_ptsource
 
