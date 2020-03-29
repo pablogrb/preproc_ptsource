@@ -334,6 +334,14 @@ IMPLICIT NONE
 
 	END DO
 
+	! ------------------------------------------------------------------------------------------
+	! Check if the output file exists
+	INQUIRE(FILE=TRIM(ptsource_out), EXIST=file_exists)
+	IF ( file_exists ) THEN
+		WRITE(0,'(A)') 'Output point source file ', TRIM(ptsource_out), ' exists. Will not overwrite'
+		CALL EXIT(0)
+	END IF
+
 	! Write the output file
 	CALL write_uamfile(fl_out, ptsource_out)
 
