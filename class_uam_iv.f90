@@ -378,6 +378,7 @@ CONTAINS
 			&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
 		! WRITE(*,h2format) fl%orgx,fl%orgy,fl%iutm,fl%utmx,fl%utmy,fl%dx,fl%dy,fl%nx,fl%ny,fl%nz,&
 		! 	&fl%nzlo,fl%nzup,fl%hts,fl%htl,fl%htu
+!		Read the third header		
 		READ (fl%unit) fl%i1,fl%j1,fl%nx1,fl%ny1
 
 !		Print the header to terminal

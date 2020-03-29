@@ -20,7 +20,8 @@ IMPLICIT NONE
 	! This program requires a F08 compatible compiler
 	! ------------------------------------------------------------------------------------------
 	! Error coodes
-	!	0 = IO Error
+	!	0 = File IO
+	!	1 = Memory allocation
 
 	! ------------------------------------------------------------------------------------------
 	! Declarations
@@ -35,6 +36,14 @@ IMPLICIT NONE
 	! UAM IV output file
 	TYPE(UAM_IV) :: fl_out							! CAMx format ptsource output file
 
+	! CAMx Control
+	CHARACTER(LEN=4), DIMENSION(60) :: Run_Message	! Name array
+	INTEGER :: Time_Zone							! Time Zone (5 = EST)
+	INTEGER :: emiss_date							! Date for the emissions file
+	INTEGER :: frames = 1							! Number of data frames (24, one for each hour)
+	INTEGER :: nstk									! Number of stacks
+	INTEGER :: nspec								! Number of inventory species
+
 	! Projection parameters
 	CHARACTER(LEN=10) :: Map_Projection				! (LAMBERT,POLAR)
 	INTEGER :: UTM_Zone
@@ -46,8 +55,16 @@ IMPLICIT NONE
 	REAL :: LAMBERT_True_Latitude2					! deg (west<0,south<0, can be same as
 													!      LAMBERT_True_Latitude1)
 
+	! Grid parameters
+	REAL :: Master_Origin_XCoord					! km or deg, SW corner of cell (1,1)
+	REAL :: Master_Origin_YCoord					! km or deg, SW corner of cell (1,1)
+	REAL :: Master_Cell_XSize						! km or deg
+	REAL :: Master_Cell_YSize						! km or deg
+	INTEGER :: Master_Grid_Columns					! grid cells in E-W direction
+	INTEGER :: Master_Grid_Rows						! grid cells in N-S direction
+
 	! ptsource parameter vectors
-	INTEGER, ALLOCATABLE :: camx_id_par(:)				! ptsource id code from the inventory
+	INTEGER, ALLOCATABLE :: camx_id_par(:)			! ptsource id code from the inventory
 	REAL, ALLOCATABLE :: pt_lat(:), pt_lon(:)		! latitude and longitude of each source
 
 	! emiss parameter vectors
@@ -59,16 +76,19 @@ IMPLICIT NONE
 	LOGICAL :: file_exists
 	INTEGER :: alloc_stat
 	INTEGER :: io_stat
-	INTEGER :: i_stk, i_nsp
+	INTEGER :: i, i_stk, i_nsp
 	CHARACTER(LEN=10) :: str_dummy
 
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
 	INTEGER :: nml_unit								! Control file unit
+	NAMELIST /CAMx_Control/ Run_Message, Time_Zone, emiss_date, nstk, nspec
 	NAMELIST /file_io/ ptsource_param, ptsource_emiss, ptsource_out
 	NAMELIST /projection/ Map_Projection, UTM_Zone, POLAR_Longitude_Pole, POLAR_Latitude_Pole, &
 						& LAMBERT_Center_Longitude, LAMBERT_Center_Latitude, &
 						& LAMBERT_True_Latitude1, LAMBERT_True_Latitude2
+	NAMELIST /grid/ Master_Origin_XCoord, Master_Origin_YCoord, Master_Cell_XSize, Master_Cell_YSize, &
+						& Master_Grid_Columns, Master_Grid_Rows
 
 	! ------------------------------------------------------------------------------------------
 	! Entry point
@@ -102,9 +122,58 @@ IMPLICIT NONE
 
 	! Read the namelist
 	OPEN(NEWUNIT=nml_unit, FILE=ctrlfile, FORM='FORMATTED', STATUS='OLD', ACTION='READ')
+	READ(nml_unit,NML=CAMx_Control)
 	READ(nml_unit,NML=file_io)
 	READ(nml_unit,NML=projection)
+	READ(nml_unit,NML=grid)
 	CLOSE(nml_unit)
+
+	! ------------------------------------------------------------------------------------------
+	! Build the first file header
+	fl_out%ftype = "PTSOURCE"
+	DO i = 1, 10
+		fl_out%fname(i) = fl_out%ftype(i:i)
+	END DO
+	fl_out%note = Run_Message
+	fl_out%nseg 	= Time_Zone
+	fl_out%nspec	= nspec
+	fl_out%idate 	= emiss_date
+	fl_out%begtim 	= 0.
+	fl_out%jdate 	= emiss_date
+	fl_out%endtim 	= 24.
+	! Build the second file header
+	SELECT CASE (Map_Projection)
+	CASE ('LAMBERT')
+		fl_out%nzlo = 2
+		fl_out%orgx = LAMBERT_Center_Longitude
+		fl_out%orgy = LAMBERT_Center_Latitude
+	CASE ('POLAR')
+		fl_out%nzlo = 3
+		fl_out%orgx = POLAR_Longitude_Pole
+		fl_out%orgy = POLAR_Latitude_Pole
+	CASE DEFAULT
+		WRITE(0,'(A)') 'Not a valid projection type'
+		CALL EXIT(0)
+	END SELECT
+	fl_out%iutm = 0
+	fl_out%utmx = Master_Origin_XCoord
+	fl_out%utmy = Master_Origin_YCoord
+	fl_out%dx 	= Master_Cell_XSize*1000.
+	fl_out%dy 	= Master_Cell_YSize*1000.
+	fl_out%nx 	= Master_Grid_Columns
+	fl_out%ny 	= Master_Grid_Rows
+	fl_out%nz 	= 1
+	fl_out%nzup = 0
+	fl_out%hts 	= LAMBERT_True_Latitude1
+	fl_out%htl 	= LAMBERT_True_Latitude2
+	fl_out%htu 	= 1
+	! Build the third header
+	fl_out%i1 	= 1
+	fl_out%j1 	= 1
+	fl_out%nx1 	= Master_Grid_Columns
+	fl_out%ny1 	= Master_Grid_Rows
+	! Set the stack number
+	fl_out%nstk = nstk
 
 	! ------------------------------------------------------------------------------------------
 	! Check if the ptsource parameter file exists
@@ -116,10 +185,6 @@ IMPLICIT NONE
 
 	! Read the ptsource parameter file
 	OPEN(NEWUNIT=param_unit, FILE=TRIM(ptsource_param),STATUS='OLD')
-	! Read the number of point sources
-	READ(param_unit,*) fl_out%nstk, fl_out%nspec
-	WRITE(6,'(A,I3)') 'Number of point sources: ', fl_out%nstk
-	WRITE(6,'(A,I3)') 'Number species: ', fl_out%nspec
 	! Skip column headers
 	READ(param_unit,*)
 

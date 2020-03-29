@@ -1,25 +1,42 @@
+&CAMx_Control
+	Run_Message	= "SIMECA System"				! File description
+	Time_Zone	= 5								! Time zone  (5 = EST)
+	emiss_date	= 20001							! YYDDD
+	nstk		= 216							! Number of stacks
+	nspec		= 210							! Number of inventory species
+/
+
 &file_io
 
-	! Archivo de parAmetros de fuentes fijas
+	! Stack parameter file
 	ptsource_param = './pointsources_param.csv'
-	! Archivo de emisiones de fuentes fijas
+	! Stack emissions file
 	ptsource_emiss = './pointsources_emisiones_.csv'
 
-	! Archivo de salida de fuentes fijas en formato de CAMx6.20
+	! CAMx6.20 compatible ptsource file
 	ptsource_out   = ''
 
 /
 
 &projection
 
-	Map_Projection				= 'POLAR',		! (LAMBERT,POLAR)
-	UTM_Zone					= 0,
-	POLAR_Longitude_Pole		= -75.58,		! deg (west<0,south<0)
-	POLAR_Latitude_Pole			= 6.26,			! deg (west<0,south<0)
-	LAMBERT_Center_Longitude	= -97.,			! deg (west<0,south<0)
-	LAMBERT_Center_Latitude		=  40.,			! deg (west<0,south<0)
-	LAMBERT_True_Latitude1		=  33.,			! deg (west<0,south<0)
-	LAMBERT_True_Latitude2 		=  45.,			! deg (west<0,south<0, can be same as
+	Map_Projection				= 'POLAR'		! (LAMBERT,POLAR)
+	UTM_Zone					= 0
+	POLAR_Longitude_Pole		= -75.58		! deg (west<0,south<0)
+	POLAR_Latitude_Pole			= 6.26			! deg (west<0,south<0)
+	LAMBERT_Center_Longitude	= -97.			! deg (west<0,south<0)
+	LAMBERT_Center_Latitude		=  40.			! deg (west<0,south<0)
+	LAMBERT_True_Latitude1		=  33.			! deg (west<0,south<0)
+	LAMBERT_True_Latitude2 		=  45.			! deg (west<0,south<0, can be same as
 												!      LAMBERT_True_Latitude1)
 
+/
+
+&grid
+	Master_Origin_XCoord = -29.50				! km or deg, SW corner of cell (1,1)
+	Master_Origin_YCoord = -29.50				! km or deg, SW corner of cell (1,1)
+	Master_Cell_XSize    = 1.					! km or deg
+	Master_Cell_YSize    = 1.					! km or deg
+	Master_Grid_Columns  = 60					! grid cells in E-W direction
+	Master_Grid_Rows     = 60					! grid cells in N-S direction
 /
