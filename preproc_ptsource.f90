@@ -80,6 +80,7 @@ IMPLICIT NONE
 	INTEGER :: io_stat
 	INTEGER :: i, i_stk, i_nsp, i_dfr
 	CHARACTER(LEN=10) :: str_dummy
+	CHARACTER(LEN=4)  :: str_refmt
 
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -222,14 +223,19 @@ IMPLICIT NONE
 		! Switch by projection type
 		SELECT CASE (Map_Projection)
 		CASE ('LAMBERT')
+			! Convert Lat-Lon to LAMBERT
 			CALL lcpgeo(0,LAMBERT_Center_Latitude,LAMBERT_Center_Longitude,LAMBERT_True_Latitude1, LAMBERT_True_Latitude2,&
 					&	fl_out%xstk(i_stk),fl_out%ystk(i_stk),pt_lon(i_stk),pt_lat(i_stk))
 		CASE ('POLAR')
+			! Convert Lat-Lon to POLAR
 			CALL pspgeo(0,POLAR_Longitude_Pole,POLAR_Latitude_Pole,fl_out%xstk(i_stk),fl_out%ystk(i_stk),pt_lon(i_stk),pt_lat(i_stk))
 		CASE DEFAULT
 			WRITE(0,'(A)') 'Not a valid projection type'
 			CALL EXIT(0)
 		END SELECT
+		! Geodetic routines ouputs projection coordinates in km, CAMx requires meters
+		fl_out%xstk(i_stk) = fl_out%xstk(i_stk) / 1000.
+		fl_out%ystk(i_stk) = fl_out%ystk(i_stk) / 1000.
 
 	END DO
 
@@ -255,8 +261,8 @@ IMPLICIT NONE
 	! Write to the species array
 	DO i_nsp = 1, fl_out%nspec
 		DO i = 1,10
-			! This produces a compiler warning -Wcharacter-truncation, but runs fine
-			fl_out%spname(i,i_nsp) = fl_out%c_spname(i_nsp)(i:i)
+			WRITE(str_refmt,'(4A)') fl_out%c_spname(i_nsp)(i:i)
+			fl_out%spname(i,i_nsp) = str_refmt
 		END DO
 	END DO
 	! Diagnostic output of species list
