@@ -67,8 +67,9 @@ IMPLICIT NONE
 	INTEGER, ALLOCATABLE :: camx_id_par(:)			! ptsource id code from the inventory
 	REAL, ALLOCATABLE :: pt_lat(:), pt_lon(:)		! latitude and longitude of each source
 
-	! emiss parameter vectors
-	INTEGER, ALLOCATABLE :: camx_id_emi(:)
+	! emiss data
+	INTEGER, ALLOCATABLE :: camx_id_emi(:)			! ptsource id code from the inventory
+	INTEGER, ALLOCATABLE :: emi_hr(:)					! Hour for the emission, must match the i_hr index
 
 	! Control
 	INTEGER :: arg_num
@@ -76,7 +77,7 @@ IMPLICIT NONE
 	LOGICAL :: file_exists
 	INTEGER :: alloc_stat
 	INTEGER :: io_stat
-	INTEGER :: i, i_stk, i_nsp
+	INTEGER :: i, i_stk, i_nsp, i_dfr
 	CHARACTER(LEN=10) :: str_dummy
 
 	! Namelist IO
@@ -202,6 +203,7 @@ IMPLICIT NONE
 
 	! Read the parameter file while converting the lat lon to projection coordinates
 	DO i_stk = 1, fl_out%nstk
+
 		READ(param_unit,*,IOSTAT=io_stat) camx_id_par(i_stk), pt_lat(i_stk), pt_lon(i_stk),&
 						& fl_out%hstk(i_stk), fl_out%dstk(i_stk),&
 						& fl_out%tstk(i_stk), fl_out%vstk(i_stk)
@@ -224,6 +226,7 @@ IMPLICIT NONE
 			WRITE(0,'(A)') 'Not a valid projection type'
 			CALL EXIT(0)
 		END SELECT
+
 	END DO
 
 	! ------------------------------------------------------------------------------------------
@@ -236,14 +239,54 @@ IMPLICIT NONE
 
 	! Read the ptsource parameter file
 	OPEN(NEWUNIT=emiss_unit, FILE=TRIM(ptsource_emiss),STATUS='OLD')
-	! Allocate the parameter vectors
+	! Allocate the species names vectors
 	ALLOCATE(fl_out%c_spname(fl_out%nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	! Read the the species list
 	READ(emiss_unit,*) str_dummy, str_dummy, (fl_out%c_spname(i_nsp), i_nsp = 1, fl_out%nspec)
 	! Diagnostic output of species list
+	! WRITE(*,*) (fl_out%c_spname(i_nsp),i_nsp=1,fl_out%nspec)
+	! Write to the species array
 	DO i_nsp = 1, fl_out%nspec
-		WRITE(*,*) fl_out%c_spname(i_nsp)
+		DO i = 1,10
+			! This produces a compiler warning -Wcharacter-truncation, but runs fine
+			fl_out%spname(i,i_nsp) = fl_out%c_spname(i_nsp)(i:i)
+		END DO
+	END DO
+	! Diagnostic output of species list
+	! WRITE(*,'(10A1)') ((fl_out%spname(i,i_nsp),i=1,10),i_nsp=1,fl_out%nspec)
+
+
+	! Allocate the emiss vectors
+	ALLOCATE(camx_id_emi(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(emi_hr(fl_out%nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+	! Read each data frame
+	fl_out%update_times = frames
+	DO i_dfr = 1, frames
+
+		! Read each stack record
+		DO i_stk = 1, fl_out%nstk
+			READ(emiss_unit,*) camx_id_emi(i_stk), emi_hr(i_stk)
+		END DO
+
+		! Check for param vector consistency
+		IF ( .NOT. ALL(camx_id_par .EQ. camx_id_emi)) THEN
+			WRITE(0,'(A)') "Stack list inconsistency"
+			WRITE(0,'(A)') "Each data frame must have the same stak list as the stack parameter file"
+			WRITE(0,'(A,I2)') "Failed while reading data frame ", i_dfr
+			CALL EXIT(2)
+		END IF
+		IF ( .NOT. ALL(emi_hr .EQ. i_dfr)) THEN
+			WRITE(0,'(A)') "Inconsistent hour information"
+			WRITE(0,'(A)') "All stacks whithin a data frame must have the same hour information"
+			WRITE(0,'(A,I2)') "Failed while reading data frame ", i_dfr
+		END IF
+
 	END DO
 
 END PROGRAM preproc_ptsource
