@@ -287,6 +287,13 @@ IMPLICIT NONE
 	ALLOCATE(fl_out%ptemis(frames,nstk,nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 
+	! Set values for the empty/control stack emission arrays
+	fl_out%icell = 0
+	fl_out%jcell = 0
+	fl_out%kcell = 0
+	fl_out%flow  = 0.
+	fl_out%plmht = 0.
+
 	! Read each data frame
 	DO i_dfr = 1, frames
 		! Sanity output
