@@ -6,3 +6,5 @@ preproc_ptsource
 *.o
 # comma separated files
 *.csv
+# Binary output files
+*.bin

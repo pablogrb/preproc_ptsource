@@ -14,7 +14,7 @@
 	ptsource_emiss = './pointsources_emisiones_.csv'
 
 	! CAMx6.20 compatible ptsource file
-	ptsource_out   = ''
+	ptsource_out   = './ptsource_SIMECA-System_2020001.bin'
 
 /
 

@@ -467,8 +467,8 @@ CONTAINS
 
 ! 		Write the species records
 		WRITE(fl%unit) ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
-		WRITE(*,*) fl%c_spname
-! 		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
+		! WRITE(*,*) fl%c_spname
+		WRITE(*,'(10a1)') ((fl%spname(i,j),i=1,10),j=1,fl%nspec)
 
 	END SUBROUTINE write_species
 
@@ -713,7 +713,7 @@ CONTAINS
 
 ! 		Write the number of stacks
 		WRITE(fl%unit) ione,fl%nstk
-		WRITE(*,*) ione, fl%nstk, TRIM(fl%in_file)
+		WRITE(*,*) ione, fl%nstk
 
 ! 		Write the stack parameter records
 		WRITE(fl%unit) (fl%xstk(i_stk),fl%ystk(i_stk),fl%hstk(i_stk),fl%dstk(i_stk),&

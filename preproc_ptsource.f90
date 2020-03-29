@@ -37,10 +37,11 @@ IMPLICIT NONE
 	TYPE(UAM_IV) :: fl_out							! CAMx format ptsource output file
 
 	! CAMx Control
-	CHARACTER(LEN=4), DIMENSION(60) :: Run_Message	! Name array
+	CHARACTER(LEN=60) :: Run_Message				! Run message (also known as note)
 	INTEGER :: Time_Zone							! Time Zone (5 = EST)
 	INTEGER :: emiss_date							! Date for the emissions file
 	INTEGER :: frames = 1							! Number of data frames (24, one for each hour)
+	REAL :: dt = 24.								! Duration of each data frame (1., one hour)
 	INTEGER :: nstk									! Number of stacks
 	INTEGER :: nspec								! Number of inventory species
 
@@ -135,7 +136,9 @@ IMPLICIT NONE
 	DO i = 1, 10
 		fl_out%fname(i) = fl_out%ftype(i:i)
 	END DO
-	fl_out%note = Run_Message
+	DO i = 1, 60
+		fl_out%note(i) = Run_Message(i:i)
+	END DO
 	fl_out%nseg 	= Time_Zone
 	fl_out%nspec	= nspec
 	fl_out%idate 	= emiss_date
@@ -211,7 +214,8 @@ IMPLICIT NONE
 			WRITE(0,'(A)') 'Error reading stack parameter file'
 			CALL EXIT(0)
 		ELSE IF ( io_stat < 0 ) THEN
-			WRITE(0,'(A,I3,A,I3)') 'Unexpected end of file, expected ', fl_out%nstk, ' point sources, failed while reading no. ', i_stk
+			WRITE(0,'(A,I3,A,I3)') 'Unexpected end of parameter file, expected ', fl_out%nstk,&
+								&  ' point sources, failed while reading no. ', i_stk
 			CALL EXIT(0)
 		END IF
 
@@ -258,20 +262,54 @@ IMPLICIT NONE
 	! Diagnostic output of species list
 	! WRITE(*,'(10A1)') ((fl_out%spname(i,i_nsp),i=1,10),i_nsp=1,fl_out%nspec)
 
-
 	! Allocate the emiss vectors
 	ALLOCATE(camx_id_emi(fl_out%nstk), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	ALLOCATE(emi_hr(fl_out%nstk), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 
-	! Read each data frame
+	! Allocate the time variant headers
 	fl_out%update_times = frames
+	ALLOCATE(fl_out%ibgdat(frames), fl_out%iendat(frames), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	fl_out%ibgdat = emiss_date
+	fl_out%iendat = emiss_date
+	ALLOCATE(fl_out%nbgtim(frames), fl_out%nentim(frames), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+	! Allocate the stack emissions arrays
+	ALLOCATE(fl_out%icell(frames,nstk),fl_out%jcell(frames,nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%kcell(frames,nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%flow(frames,nstk),fl_out%plmht(frames,nstk), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%ptemis(frames,nstk,nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+	! Read each data frame
 	DO i_dfr = 1, frames
+		! Sanity output
+		WRITE(6,'(A,I2)') 'Working on hour ', i_dfr
+
+		! Write the time variant header
+		fl_out%nbgtim = 0. + dt*REAL(i_dfr - 1)
+		fl_out%nentim = 0. + dt*REAL(i_dfr)
 
 		! Read each stack record
 		DO i_stk = 1, fl_out%nstk
-			READ(emiss_unit,*) camx_id_emi(i_stk), emi_hr(i_stk)
+			
+			READ(emiss_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
+											& (fl_out%ptemis(i_dfr, i_stk, i_nsp), i_nsp = 1, fl_out%nspec)
+
+			IF ( io_stat > 0 ) THEN
+				WRITE(0,'(A)') 'Error reading stack emissions file'
+				CALL EXIT(0)
+			ELSE IF ( io_stat < 0 ) THEN
+				WRITE(0,'(A,I3,A,I2)') 'Unexpected end of emissions file while trying to read stack ', i_stk, ' at hour ', i_dfr
+				CALL EXIT(0)
+			END IF
+
 		END DO
 
 		! Check for param vector consistency
@@ -288,6 +326,9 @@ IMPLICIT NONE
 		END IF
 
 	END DO
+
+	! Write the output file
+	CALL write_uamfile(fl_out, ptsource_out)
 
 END PROGRAM preproc_ptsource
 
