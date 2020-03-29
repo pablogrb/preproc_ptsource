@@ -238,6 +238,8 @@ IMPLICIT NONE
 		fl_out%ystk(i_stk) = fl_out%ystk(i_stk) / 1000.
 
 	END DO
+	! Close the stack parameter file
+	CLOSE(param_unit)
 
 	! ------------------------------------------------------------------------------------------
 	! Check if the ptsource emissions file exists
@@ -339,6 +341,8 @@ IMPLICIT NONE
 		END IF
 
 	END DO
+	! Close the stack emissions file
+	CLOSE(emiss_unit)
 
 	! ------------------------------------------------------------------------------------------
 	! Check if the output file exists
