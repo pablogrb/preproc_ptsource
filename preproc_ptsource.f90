@@ -161,8 +161,8 @@ IMPLICIT NONE
 		CALL EXIT(0)
 	END SELECT
 	fl_out%iutm = 0
-	fl_out%utmx = Master_Origin_XCoord
-	fl_out%utmy = Master_Origin_YCoord
+	fl_out%utmx = Master_Origin_XCoord*1000.
+	fl_out%utmy = Master_Origin_YCoord*1000.
 	fl_out%dx 	= Master_Cell_XSize*1000.
 	fl_out%dy 	= Master_Cell_YSize*1000.
 	fl_out%nx 	= Master_Grid_Columns
