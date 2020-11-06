@@ -1,5 +1,5 @@
 &CAMx_Control
-	Run_Message	= "SIMECA System"				! File description
+	Run_Message	= "AMVA FF"						! File description
 	Time_Zone	= 5								! Time zone  (5 = EST)
 	emiss_date	= 20001							! YYDDD
 	nstk		= 1060							! Number of stacks
@@ -9,12 +9,12 @@
 &file_io
 
 	! Stack parameter file
-	ptsource_param = './pointsources_param.csv'
+	ptsource_param = './pointsources_param_AMVA.csv'
 	! Stack emissions file
-	ptsource_emiss = './pointsources_emisiones_.csv'
+	ptsource_emiss = './Input3conparamAMVA.csv'
 
 	! CAMx6.20 compatible ptsource file
-	ptsource_out   = './ptsource_SIMECA-System_2020001.bin'
+	ptsource_out   = './ptsource_AMVA_2018.bin'
 
 /
 
@@ -22,8 +22,8 @@
 
 	Map_Projection				= 'POLAR'		! (LAMBERT,POLAR)
 	UTM_Zone					= 0
-	POLAR_Longitude_Pole		= -75.58		! deg (west<0,south<0)
-	POLAR_Latitude_Pole			= 6.26			! deg (west<0,south<0)
+	POLAR_Longitude_Pole		= -75.48		! deg (west<0,south<0)
+	POLAR_Latitude_Pole			= 6.25			! deg (west<0,south<0)
 	LAMBERT_Center_Longitude	= -97.			! deg (west<0,south<0)
 	LAMBERT_Center_Latitude		=  40.			! deg (west<0,south<0)
 	LAMBERT_True_Latitude1		=  33.			! deg (west<0,south<0)
@@ -33,10 +33,10 @@
 /
 
 &grid
-	Master_Origin_XCoord = -29.50				! km or deg, SW corner of cell (1,1)
-	Master_Origin_YCoord = -29.50				! km or deg, SW corner of cell (1,1)
-	Master_Cell_XSize    = 1.					! km or deg
-	Master_Cell_YSize    = 1.					! km or deg
+	Master_Origin_XCoord = -29.50				! km, SW corner of cell (1,1)
+	Master_Origin_YCoord = -29.50				! km, SW corner of cell (1,1)
+	Master_Cell_XSize    = 1.					! km
+	Master_Cell_YSize    = 1.					! km
 	Master_Grid_Columns  = 60					! grid cells in E-W direction
 	Master_Grid_Rows     = 60					! grid cells in N-S direction
 /

@@ -8,3 +8,5 @@ preproc_ptsource
 *.csv
 # Binary output files
 *.bin
+# Totalizer
+totalize_uam*

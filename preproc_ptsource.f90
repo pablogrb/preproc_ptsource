@@ -40,8 +40,8 @@ IMPLICIT NONE
 	CHARACTER(LEN=60) :: Run_Message				! Run message (also known as note)
 	INTEGER :: Time_Zone							! Time Zone (5 = EST)
 	INTEGER :: emiss_date							! Date for the emissions file
-	INTEGER :: frames = 1							! Number of data frames (24, one for each hour)
-	REAL :: dt = 24.								! Duration of each data frame (1., one hour)
+	INTEGER :: frames = 24							! Number of data frames (24, one for each hour)
+	REAL :: dt = 1.									! Duration of each data frame (1., one hour)
 	INTEGER :: nstk									! Number of stacks
 	INTEGER :: nspec								! Number of inventory species
 
@@ -234,8 +234,8 @@ IMPLICIT NONE
 			CALL EXIT(0)
 		END SELECT
 		! Geodetic routines ouputs projection coordinates in km, CAMx requires meters
-		fl_out%xstk(i_stk) = fl_out%xstk(i_stk) / 1000.
-		fl_out%ystk(i_stk) = fl_out%ystk(i_stk) / 1000.
+		fl_out%xstk(i_stk) = fl_out%xstk(i_stk)*1000
+		fl_out%ystk(i_stk) = fl_out%ystk(i_stk)*1000
 
 	END DO
 	! Close the stack parameter file
@@ -304,12 +304,13 @@ IMPLICIT NONE
 
 	! Read each data frame
 	DO i_dfr = 1, frames
-		! Sanity output
-		WRITE(6,'(A,I2)') 'Working on hour ', i_dfr
 
 		! Write the time variant header
-		fl_out%nbgtim = 0. + dt*REAL(i_dfr - 1)
-		fl_out%nentim = 0. + dt*REAL(i_dfr)
+		fl_out%nbgtim(i_dfr) = 0. + dt*REAL(i_dfr - 1)
+		fl_out%nentim(i_dfr) = 0. + dt*REAL(i_dfr)
+
+		! Sanity output
+		WRITE(6,'(A,I2)') 'Working on hour ', i_dfr
 
 		! Read each stack record
 		DO i_stk = 1, fl_out%nstk
