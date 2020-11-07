@@ -31,6 +31,8 @@ IMPLICIT NONE
 	INTEGER :: param_unit
 	CHARACTER(LEN=256) :: ptsource_emiss			! Point source emission file
 	INTEGER :: emiss_unit
+	CHARACTER(LEN=256) :: convm_matrix				! Conversion matrix for scaling, mw, and mech
+	INTEGER :: convm_unit
 	CHARACTER(LEN=256) :: ptsource_out				! CAMx emissions file
 
 	! UAM IV output file
@@ -43,7 +45,16 @@ IMPLICIT NONE
 	INTEGER :: frames = 24							! Number of data frames (24, one for each hour)
 	REAL :: dt = 1.									! Duration of each data frame (1., one hour)
 	INTEGER :: nstk									! Number of stacks
-	INTEGER :: nspec								! Number of inventory species
+	INTEGER :: i_nspec								! Number of inventory species
+
+	! Conversion matrix
+	INTEGER :: nspec								! Number of output species
+	CHARACTER(LEN=16), ALLOCATABLE :: s_inp_spec(:)	! Species array of the inventory file
+	CHARACTER(LEN=16), ALLOCATABLE :: s_mat_spec(:)	! Species array of the conv matrix file
+	CHARACTER(LEN=10), ALLOCATABLE :: s_out_spec(:)	! Species array of the output
+	REAL, ALLOCATABLE :: scale_factors(:)			! Scale factor vector
+	REAL, ALLOCATABLE :: molecular_weights(:)		! Vector of molecular weights
+	REAL, ALLOCATABLE :: conv_matrix(:,:)			! Linear transformation matrix for species
 
 	! Projection parameters
 	CHARACTER(LEN=10) :: Map_Projection				! (LAMBERT,POLAR)
@@ -78,15 +89,15 @@ IMPLICIT NONE
 	LOGICAL :: file_exists
 	INTEGER :: alloc_stat
 	INTEGER :: io_stat
-	INTEGER :: i, i_stk, i_nsp, i_dfr
+	INTEGER :: i, i_stk, i_nsp, i_dfr, i_spi, i_spo
 	CHARACTER(LEN=10) :: str_dummy
 	CHARACTER(LEN=4)  :: str_refmt
 
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
 	INTEGER :: nml_unit								! Control file unit
-	NAMELIST /CAMx_Control/ Run_Message, Time_Zone, emiss_date, nstk, nspec
-	NAMELIST /file_io/ ptsource_param, ptsource_emiss, ptsource_out
+	NAMELIST /CAMx_Control/ Run_Message, Time_Zone, emiss_date, nstk, i_nspec
+	NAMELIST /file_io/ ptsource_param, ptsource_emiss, convm_matrix, ptsource_out
 	NAMELIST /projection/ Map_Projection, UTM_Zone, POLAR_Longitude_Pole, POLAR_Latitude_Pole, &
 						& LAMBERT_Center_Longitude, LAMBERT_Center_Latitude, &
 						& LAMBERT_True_Latitude1, LAMBERT_True_Latitude2
@@ -131,6 +142,49 @@ IMPLICIT NONE
 	READ(nml_unit,NML=grid)
 	CLOSE(nml_unit)
 
+	! ------------------------------------------------------------------------------------------
+	! Read the conversion matrix
+	! Check if the conversion matrix file exists
+	INQUIRE(FILE=TRIM(convm_matrix), EXIST=file_exists)
+	IF (.NOT. file_exists) THEN
+		WRITE(0,'(A)') 'Conversion matrix file ', TRIM(convm_matrix), ' does not exist'
+		CALL EXIT(0)
+	END IF
+
+	! Read the conversion matrix file
+	OPEN(NEWUNIT=convm_unit, FILE=TRIM(convm_matrix),STATUS='OLD')
+	! Read the number of output species
+	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, nspec
+	! WRITE(*,'(I3)') nspec
+
+	! Allocate the species vectors
+	ALLOCATE(s_inp_spec(i_nspec))
+	ALLOCATE(s_mat_spec(i_nspec))
+	ALLOCATE(s_out_spec(nspec))
+
+	! Read the output species list
+	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (s_out_spec(i_spo), i_spo=1,nspec)
+	! WRITE(*,*) s_out_spec
+
+	! Read the scale factor vector
+	ALLOCATE(scale_factors(nspec))
+	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (scale_factors(i_spo), i_spo=1,nspec)
+	! WRITE(*,*) scale_factors
+
+	! Read the species names, molecular weights and linear transformation matrix
+	! Allocate memory to molecular weights and lintrans matrix
+	ALLOCATE(molecular_weights(i_nspec))
+	ALLOCATE(conv_matrix(i_nspec,nspec))
+
+	DO i_spi = 1, i_nspec
+		READ(convm_unit,*,IOSTAT=io_stat) s_inp_spec(i_spi), molecular_weights(i_spi), (conv_matrix(i_spi,i_spo), i_spo=1,nspec)
+	END DO
+	WRITE(*,*) s_inp_spec(i_spi-1)
+	WRITE(*,*) molecular_weights(i_spi-1)
+	WRITE(*,*) conv_matrix(i_spi-1,:)
+
+	CALL EXIT(0)
+	
 	! ------------------------------------------------------------------------------------------
 	! Build the first file header
 	fl_out%ftype = "PTSOURCE"
@@ -257,7 +311,11 @@ IMPLICIT NONE
 	ALLOCATE(fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	! Read the the species list
+
+	!!!! THIS NEEDS TO BE UPDATED
 	READ(emiss_unit,*) str_dummy, str_dummy, (fl_out%c_spname(i_nsp), i_nsp = 1, fl_out%nspec)
+	!!!! THIS NEEDS TO BE UPDATED
+
 	! Diagnostic output of species list
 	! WRITE(*,*) (fl_out%c_spname(i_nsp),i_nsp=1,fl_out%nspec)
 	! Write to the species array

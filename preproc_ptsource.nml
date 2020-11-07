@@ -3,7 +3,7 @@
 	Time_Zone	= 5								! Time zone  (5 = EST)
 	emiss_date	= 20001							! YYDDD
 	nstk		= 1060							! Number of stacks
-	nspec		= 210							! Number of inventory species
+	i_nspec		= 210							! Number of inventory species
 /
 
 &file_io
@@ -12,6 +12,9 @@
 	ptsource_param = './pointsources_param.csv'
 	! Stack emissions file
 	ptsource_emiss = './pointsources_emisiones_.csv'
+
+	! Species conversion matrix
+	convm_matrix ='./InvCB6Matrix_V02_PGR.csv'
 
 	! CAMx6.20 compatible ptsource file
 	ptsource_out   = './ptsource_SIMECA-System_2020001.bin'
