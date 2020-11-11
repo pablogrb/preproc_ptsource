@@ -6,12 +6,12 @@ IMPLICIT NONE
 	! ------------------------------------------------------------------------------------------
 	! Purpose:
 	! 	Converts the point source parameters and emissions from the UPB - GIA inventory in CSV
-	! 	format to the CAM 6.20 forma
+	! 	format to the CAM 6.20 format
 	! Inputs
 	! 	Point source parameter file
 	! 	Point source emissions file
 	! Outputs
-	! 	Point source emissions file in CAMx 6.20 forma
+	! 	Point source emissions file in CAMx 6.20 format
 	! By:
 	! 	Pablo Garcia
 	! 	pablogrb@gmail.com
@@ -161,29 +161,35 @@ IMPLICIT NONE
 	OPEN(NEWUNIT=conv_f_unit, FILE=TRIM(conv_f_matrix),STATUS='OLD')
 	! Read the number of output species
 	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, nspec
+	CALL check_io_stat(io_stat, 'number of species', 'conversion matrix')
 	! WRITE(*,'(I3)') nspec
 
 	! Allocate the species vectors
-	ALLOCATE(s_inp_spec(i_nspec))
-	ALLOCATE(s_mat_spec(i_nspec))
-	ALLOCATE(s_out_spec(nspec))
+	ALLOCATE(s_inp_spec(i_nspec), s_mat_spec(i_nspec), s_out_spec(nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'species vectors')
 
 	! Read the output species list
 	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (s_out_spec(i_spo), i_spo=1,nspec)
+	CALL check_io_stat(io_stat, 'species list', 'conversion matrix')
 	! WRITE(*,*) s_out_spec
 
 	! Read the scale factor vector
-	ALLOCATE(scale_factors(nspec))
+	ALLOCATE(scale_factors(nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'scale factor vectors')
 	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (scale_factors(i_spo), i_spo=1,nspec)
+	CALL check_io_stat(io_stat, 'scale factor', 'conversion matrix')
 	! WRITE(*,*) scale_factors
 
 	! Read the species names, molecular weights and linear transformation matrix
 	! Allocate memory to molecular weights and lintrans matrix
-	ALLOCATE(molecular_weights(i_nspec))
-	ALLOCATE(conv_matrix(i_nspec,nspec))
+	ALLOCATE(molecular_weights(i_nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'molecular weights')
+	ALLOCATE(conv_matrix(i_nspec,nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'conversion matrix')
 
 	DO i_spi = 1, i_nspec
 		READ(conv_f_unit,*,IOSTAT=io_stat) s_mat_spec(i_spi), molecular_weights(i_spi), (conv_matrix(i_spi,i_spo), i_spo=1,nspec)
+		CALL check_io_stat(io_stat, 'conversion matrix', 'conversion matrix')
 	END DO
 
 	! Close the conversion matrix file
@@ -253,15 +259,15 @@ IMPLICIT NONE
 
 	! Allocate the parameter vectors
 	ALLOCATE(camx_id_par(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'stack codes')
 	ALLOCATE(pt_lat(fl_out%nstk), pt_lon(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat,'stack lat and lon')
 	ALLOCATE(fl_out%xstk(fl_out%nstk), fl_out%ystk(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'stack projection coordinates')
 	ALLOCATE(fl_out%hstk(fl_out%nstk), fl_out%dstk(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'stack heights and diameters')
 	ALLOCATE(fl_out%tstk(fl_out%nstk), fl_out%vstk(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'stack temperatures and flows')
 
 	! Read the parameter file while converting the lat lon to projection coordinates
 	DO i_stk = 1, fl_out%nstk
@@ -269,14 +275,15 @@ IMPLICIT NONE
 		READ(param_unit,*,IOSTAT=io_stat) camx_id_par(i_stk), pt_lat(i_stk), pt_lon(i_stk),&
 						& fl_out%hstk(i_stk), fl_out%dstk(i_stk),&
 						& fl_out%tstk(i_stk), fl_out%vstk(i_stk)
-		IF ( io_stat > 0 ) THEN
-			WRITE(0,'(A)') 'Error reading stack parameter file'
-			CALL EXIT(0)
-		ELSE IF ( io_stat < 0 ) THEN
-			WRITE(0,'(A,I3,A,I3)') 'Unexpected end of parameter file, expected ', fl_out%nstk,&
-								&  ' point sources, failed while reading no. ', i_stk
-			CALL EXIT(0)
-		END IF
+		CALL check_io_stat(io_stat, 'stack parameters', 'stack parameter')
+		! IF ( io_stat > 0 ) THEN
+		! 	WRITE(0,'(A)') 'Error reading stack parameter file'
+		! 	CALL EXIT(0)
+		! ELSE IF ( io_stat < 0 ) THEN
+		! 	WRITE(0,'(A,I3,A,I3)') 'Unexpected end of parameter file, expected ', fl_out%nstk,&
+		! 						&  ' point sources, failed while reading no. ', i_stk
+		! 	CALL EXIT(0)
+		! END IF
 
 		! Switch by projection type
 		SELECT CASE (Map_Projection)
@@ -310,13 +317,12 @@ IMPLICIT NONE
 	! Read the ptsource parameter file
 	OPEN(NEWUNIT=emis_unit, FILE=TRIM(ptsource_emis),STATUS='OLD')
 	! Allocate the species names vectors
-	ALLOCATE(fl_out%c_spname(fl_out%nspec), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
-	ALLOCATE(fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%c_spname(fl_out%nspec), fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'species name vectors')
 	
 	! Read the the species list
-	READ(emis_unit,*) str_dummy, str_dummy, (s_inp_spec(i_nsp), i_nsp = 1, i_nspec)
+	READ(emis_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (s_inp_spec(i_nsp), i_nsp = 1, i_nspec)
+	CALL check_io_stat(io_stat, 'species list', 'emissions')
 	! Compare the inventory species list with the conversion matrix input species list
 	DO i_spi = 1, i_nspec
 		IF ( s_inp_spec(i_spi) .NE. s_mat_spec(i_spi) ) THEN
@@ -341,32 +347,32 @@ IMPLICIT NONE
 
 	! Allocate the emis vectors
 	ALLOCATE(camx_id_emi(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'stack codes')
 	ALLOCATE(emi_hr(fl_out%nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'emission vector from emissions file')
 
 	! Allocate the time variant headers
 	fl_out%update_times = frames
 	ALLOCATE(fl_out%ibgdat(frames), fl_out%iendat(frames), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'date header vectors')
 	fl_out%ibgdat = emis_date
 	fl_out%iendat = emis_date
 	ALLOCATE(fl_out%nbgtim(frames), fl_out%nentim(frames), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'time header vectors')
 
 	! Allocate the stack emissions arrays
 	ALLOCATE(fl_out%icell(frames,nstk),fl_out%jcell(frames,nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'i and j cell arrays')
 	ALLOCATE(fl_out%kcell(frames,nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'kcell array')
 	ALLOCATE(fl_out%flow(frames,nstk),fl_out%plmht(frames,nstk), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'flow and plume height arrays')
 	ALLOCATE(fl_out%ptemis(frames,nstk,nspec), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'emission array')
 
 	! Allocate the intermediate vectors for transformations
 	ALLOCATE(v_inp_emis(i_nspec), v_out_emis(nspec), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+	CALL check_alloc_stat(alloc_stat, 'intermediate emission vectors for transformations')
 
 	! Set values for the empty/control stack emision arrays
 	fl_out%icell = 0
@@ -388,11 +394,8 @@ IMPLICIT NONE
 		! Read each stack record
 		DO i_stk = 1, fl_out%nstk
 			
-			! READ(emis_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
-			! 								& (fl_out%ptemis(i_dfr, i_stk, i_nsp), i_nsp = 1, fl_out%nspec)
 			READ(emis_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
 											& (v_inp_emis(i_nsp), i_nsp = 1, i_nspec)
-			
 			IF ( io_stat > 0 ) THEN
 				WRITE(0,'(A)') 'Error reading stack emissions file'
 				CALL EXIT(0)
@@ -452,13 +455,32 @@ END PROGRAM preproc_ptsource
 !	Subroutines and functions
 !	------------------------------------------------------------------------------------------
 
-SUBROUTINE check_alloc_stat(alloc_stat)
+SUBROUTINE check_alloc_stat(alloc_stat, target)
+IMPLICIT NONE
 
 	INTEGER, INTENT(IN) :: alloc_stat
+	CHARACTER, INTENT(IN) :: target
 
 	IF ( alloc_stat .NE. 0 ) THEN
-		WRITE(0,'(A)') 'Error allocating parameter vectors, check available memory'
+		WRITE(0,'(A,A,A)') 'Error allocating ', target, ' check available memory'
 		CALL EXIT(1)
 	END IF
 
 END SUBROUTINE check_alloc_stat
+
+SUBROUTINE check_io_stat(io_stat, target_v, target_f)
+IMPLICIT NONE
+
+	INTEGER, INTENT(IN) :: io_stat
+	CHARACTER, INTENT(IN) :: target_v
+	CHARACTER, INTENT(IN) :: target_f
+
+	IF ( io_stat > 0 ) THEN
+		WRITE(0,'(A,A,A,A,A)') 'Error reading ', target_v,' from ', target_f, ' file'
+		CALL EXIT(0)
+	ELSE IF ( io_stat < 0 ) THEN
+		WRITE(0,'(A,A,A)') 'Unexpected end of ', target_f,' file'
+		CALL EXIT(0)
+	END IF
+
+END SUBROUTINE
