@@ -19,7 +19,7 @@ IMPLICIT NONE
 	! 	2020-03
 	! This program requires a F08 compatible compiler
 	! ------------------------------------------------------------------------------------------
-	! Error coodes
+	! Error codes
 	!	0 = File IO
 	!	1 = Memory allocation
 
@@ -29,10 +29,10 @@ IMPLICIT NONE
 	! IO
 	CHARACTER(LEN=256) :: ptsource_param			! Point source parameter file
 	INTEGER :: param_unit
-	CHARACTER(LEN=256) :: ptsource_emiss			! Point source emission file
-	INTEGER :: emiss_unit
-	CHARACTER(LEN=256) :: convm_matrix				! Conversion matrix for scaling, mw, and mech
-	INTEGER :: convm_unit
+	CHARACTER(LEN=256) :: ptsource_emis			! Point source emision file
+	INTEGER :: emis_unit
+	CHARACTER(LEN=256) :: conv_f_matrix				! Conversion matrix for scaling, mw, and mech
+	INTEGER :: conv_f_unit
 	CHARACTER(LEN=256) :: ptsource_out				! CAMx emissions file
 
 	! UAM IV output file
@@ -41,11 +41,14 @@ IMPLICIT NONE
 	! CAMx Control
 	CHARACTER(LEN=60) :: Run_Message				! Run message (also known as note)
 	INTEGER :: Time_Zone							! Time Zone (5 = EST)
-	INTEGER :: emiss_date							! Date for the emissions file
+	INTEGER :: emis_date							! Date for the emissions file
 	INTEGER :: frames = 24							! Number of data frames (24, one for each hour)
 	REAL :: dt = 1.									! Duration of each data frame (1., one hour)
 	INTEGER :: nstk									! Number of stacks
 	INTEGER :: i_nspec								! Number of inventory species
+
+	REAL :: conv_fact								! Unit conversion factor, emissions must be in g/h
+													! E.g use 1000 to convert an inventory in kg/h to g/h
 
 	! Conversion matrix
 	INTEGER :: nspec								! Number of output species
@@ -55,6 +58,9 @@ IMPLICIT NONE
 	REAL, ALLOCATABLE :: scale_factors(:)			! Scale factor vector
 	REAL, ALLOCATABLE :: molecular_weights(:)		! Vector of molecular weights
 	REAL, ALLOCATABLE :: conv_matrix(:,:)			! Linear transformation matrix for species
+
+	REAL, ALLOCATABLE :: v_inp_emis(:)				! Emmision rate vector as read from emision file (size i_nspec)
+	REAL, ALLOCATABLE :: v_out_emis(:)				! emision rate vector after linear transform (size nspec)
 
 	! Projection parameters
 	CHARACTER(LEN=10) :: Map_Projection				! (LAMBERT,POLAR)
@@ -79,9 +85,9 @@ IMPLICIT NONE
 	INTEGER, ALLOCATABLE :: camx_id_par(:)			! ptsource id code from the inventory
 	REAL, ALLOCATABLE :: pt_lat(:), pt_lon(:)		! latitude and longitude of each source
 
-	! emiss data
+	! emis data
 	INTEGER, ALLOCATABLE :: camx_id_emi(:)			! ptsource id code from the inventory
-	INTEGER, ALLOCATABLE :: emi_hr(:)					! Hour for the emission, must match the i_hr index
+	INTEGER, ALLOCATABLE :: emi_hr(:)				! Hour for the emision, must match the i_hr index
 
 	! Control
 	INTEGER :: arg_num
@@ -96,8 +102,8 @@ IMPLICIT NONE
 	! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
 	INTEGER :: nml_unit								! Control file unit
-	NAMELIST /CAMx_Control/ Run_Message, Time_Zone, emiss_date, nstk, i_nspec
-	NAMELIST /file_io/ ptsource_param, ptsource_emiss, convm_matrix, ptsource_out
+	NAMELIST /CAMx_Control/ Run_Message, Time_Zone, emis_date, nstk, i_nspec, conv_fact
+	NAMELIST /file_io/ ptsource_param, ptsource_emis, conv_f_matrix, ptsource_out
 	NAMELIST /projection/ Map_Projection, UTM_Zone, POLAR_Longitude_Pole, POLAR_Latitude_Pole, &
 						& LAMBERT_Center_Longitude, LAMBERT_Center_Latitude, &
 						& LAMBERT_True_Latitude1, LAMBERT_True_Latitude2
@@ -145,16 +151,16 @@ IMPLICIT NONE
 	! ------------------------------------------------------------------------------------------
 	! Read the conversion matrix
 	! Check if the conversion matrix file exists
-	INQUIRE(FILE=TRIM(convm_matrix), EXIST=file_exists)
+	INQUIRE(FILE=TRIM(conv_f_matrix), EXIST=file_exists)
 	IF (.NOT. file_exists) THEN
-		WRITE(0,'(A)') 'Conversion matrix file ', TRIM(convm_matrix), ' does not exist'
+		WRITE(0,'(A)') 'Conversion matrix file ', TRIM(conv_f_matrix), ' does not exist'
 		CALL EXIT(0)
 	END IF
 
 	! Read the conversion matrix file
-	OPEN(NEWUNIT=convm_unit, FILE=TRIM(convm_matrix),STATUS='OLD')
+	OPEN(NEWUNIT=conv_f_unit, FILE=TRIM(conv_f_matrix),STATUS='OLD')
 	! Read the number of output species
-	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, nspec
+	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, nspec
 	! WRITE(*,'(I3)') nspec
 
 	! Allocate the species vectors
@@ -163,12 +169,12 @@ IMPLICIT NONE
 	ALLOCATE(s_out_spec(nspec))
 
 	! Read the output species list
-	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (s_out_spec(i_spo), i_spo=1,nspec)
+	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (s_out_spec(i_spo), i_spo=1,nspec)
 	! WRITE(*,*) s_out_spec
 
 	! Read the scale factor vector
 	ALLOCATE(scale_factors(nspec))
-	READ(convm_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (scale_factors(i_spo), i_spo=1,nspec)
+	READ(conv_f_unit,*,IOSTAT=io_stat) str_dummy, str_dummy, (scale_factors(i_spo), i_spo=1,nspec)
 	! WRITE(*,*) scale_factors
 
 	! Read the species names, molecular weights and linear transformation matrix
@@ -177,13 +183,11 @@ IMPLICIT NONE
 	ALLOCATE(conv_matrix(i_nspec,nspec))
 
 	DO i_spi = 1, i_nspec
-		READ(convm_unit,*,IOSTAT=io_stat) s_inp_spec(i_spi), molecular_weights(i_spi), (conv_matrix(i_spi,i_spo), i_spo=1,nspec)
+		READ(conv_f_unit,*,IOSTAT=io_stat) s_mat_spec(i_spi), molecular_weights(i_spi), (conv_matrix(i_spi,i_spo), i_spo=1,nspec)
 	END DO
-	WRITE(*,*) s_inp_spec(i_spi-1)
-	WRITE(*,*) molecular_weights(i_spi-1)
-	WRITE(*,*) conv_matrix(i_spi-1,:)
 
-	CALL EXIT(0)
+	! Close the conversion matrix file
+	CLOSE(conv_f_unit)
 	
 	! ------------------------------------------------------------------------------------------
 	! Build the first file header
@@ -196,9 +200,9 @@ IMPLICIT NONE
 	END DO
 	fl_out%nseg 	= Time_Zone
 	fl_out%nspec	= nspec
-	fl_out%idate 	= emiss_date
+	fl_out%idate 	= emis_date
 	fl_out%begtim 	= 0.
-	fl_out%jdate 	= emiss_date
+	fl_out%jdate 	= emis_date
 	fl_out%endtim 	= 24.
 	! Build the second file header
 	SELECT CASE (Map_Projection)
@@ -297,27 +301,34 @@ IMPLICIT NONE
 
 	! ------------------------------------------------------------------------------------------
 	! Check if the ptsource emissions file exists
-	INQUIRE(FILE=TRIM(ptsource_emiss), EXIST=file_exists)
+	INQUIRE(FILE=TRIM(ptsource_emis), EXIST=file_exists)
 	IF (.NOT. file_exists) THEN
 		WRITE(0,'(A)') 'Point source emissions file ', TRIM(ptsource_param), ' does not exist'
 		CALL EXIT(0)
 	END IF
 
 	! Read the ptsource parameter file
-	OPEN(NEWUNIT=emiss_unit, FILE=TRIM(ptsource_emiss),STATUS='OLD')
+	OPEN(NEWUNIT=emis_unit, FILE=TRIM(ptsource_emis),STATUS='OLD')
 	! Allocate the species names vectors
 	ALLOCATE(fl_out%c_spname(fl_out%nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	ALLOCATE(fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
+	
 	! Read the the species list
+	READ(emis_unit,*) str_dummy, str_dummy, (s_inp_spec(i_nsp), i_nsp = 1, i_nspec)
+	! Compare the inventory species list with the conversion matrix input species list
+	DO i_spi = 1, i_nspec
+		IF ( s_inp_spec(i_spi) .NE. s_mat_spec(i_spi) ) THEN
+			WRITE(*,*) 'Species ', i_spi, ' mismatch'
+			WRITE(*,*) 'Inventory species is: ', s_inp_spec(i_spi)
+			WRITE(*,*) 'Matrix input species is: ', s_mat_spec(i_spi)
+			CALL EXIT(1)
+		END IF
+	END DO
 
-	!!!! THIS NEEDS TO BE UPDATED
-	READ(emiss_unit,*) str_dummy, str_dummy, (fl_out%c_spname(i_nsp), i_nsp = 1, fl_out%nspec)
-	!!!! THIS NEEDS TO BE UPDATED
-
-	! Diagnostic output of species list
-	! WRITE(*,*) (fl_out%c_spname(i_nsp),i_nsp=1,fl_out%nspec)
+	! Write to the human readable species array
+	fl_out%c_spname = s_out_spec
 	! Write to the species array
 	DO i_nsp = 1, fl_out%nspec
 		DO i = 1,10
@@ -328,7 +339,7 @@ IMPLICIT NONE
 	! Diagnostic output of species list
 	! WRITE(*,'(10A1)') ((fl_out%spname(i,i_nsp),i=1,10),i_nsp=1,fl_out%nspec)
 
-	! Allocate the emiss vectors
+	! Allocate the emis vectors
 	ALLOCATE(camx_id_emi(fl_out%nstk), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 	ALLOCATE(emi_hr(fl_out%nstk), STAT=alloc_stat)
@@ -338,8 +349,8 @@ IMPLICIT NONE
 	fl_out%update_times = frames
 	ALLOCATE(fl_out%ibgdat(frames), fl_out%iendat(frames), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
-	fl_out%ibgdat = emiss_date
-	fl_out%iendat = emiss_date
+	fl_out%ibgdat = emis_date
+	fl_out%iendat = emis_date
 	ALLOCATE(fl_out%nbgtim(frames), fl_out%nentim(frames), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 
@@ -353,7 +364,11 @@ IMPLICIT NONE
 	ALLOCATE(fl_out%ptemis(frames,nstk,nspec), STAT=alloc_stat)
 	CALL check_alloc_stat(alloc_stat)
 
-	! Set values for the empty/control stack emission arrays
+	! Allocate the intermediate vectors for transformations
+	ALLOCATE(v_inp_emis(i_nspec), v_out_emis(nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+	! Set values for the empty/control stack emision arrays
 	fl_out%icell = 0
 	fl_out%jcell = 0
 	fl_out%kcell = 0
@@ -373,9 +388,11 @@ IMPLICIT NONE
 		! Read each stack record
 		DO i_stk = 1, fl_out%nstk
 			
-			READ(emiss_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
-											& (fl_out%ptemis(i_dfr, i_stk, i_nsp), i_nsp = 1, fl_out%nspec)
-
+			! READ(emis_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
+			! 								& (fl_out%ptemis(i_dfr, i_stk, i_nsp), i_nsp = 1, fl_out%nspec)
+			READ(emis_unit,*,IOSTAT=io_stat) camx_id_emi(i_stk), emi_hr(i_stk),&
+											& (v_inp_emis(i_nsp), i_nsp = 1, i_nspec)
+			
 			IF ( io_stat > 0 ) THEN
 				WRITE(0,'(A)') 'Error reading stack emissions file'
 				CALL EXIT(0)
@@ -383,6 +400,21 @@ IMPLICIT NONE
 				WRITE(0,'(A,I3,A,I2)') 'Unexpected end of emissions file while trying to read stack ', i_stk, ' at hour ', i_dfr
 				CALL EXIT(0)
 			END IF
+			
+			! Convert units
+			v_inp_emis = v_inp_emis * conv_fact
+
+			! Convert to mole using the molecular weigth vector
+			v_inp_emis = v_inp_emis / molecular_weights
+
+			! Use a linear transformation to speciate for the model species list
+			v_out_emis = MATMUL(v_inp_emis, conv_matrix)
+
+			! Scale the emissions using the scaling factor vector
+			v_out_emis = v_out_emis * scale_factors
+			
+			! Assign the converted output to the output file object
+			fl_out%ptemis(i_dfr,i_stk,:) = v_out_emis
 
 		END DO
 
@@ -401,7 +433,7 @@ IMPLICIT NONE
 
 	END DO
 	! Close the stack emissions file
-	CLOSE(emiss_unit)
+	CLOSE(emis_unit)
 
 	! ------------------------------------------------------------------------------------------
 	! Check if the output file exists

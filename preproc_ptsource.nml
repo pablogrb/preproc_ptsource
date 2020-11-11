@@ -14,7 +14,7 @@
 	ptsource_emiss = './pointsources_emisiones_.csv'
 
 	! Species conversion matrix
-	convm_matrix ='./InvCB6Matrix_V02_PGR.csv'
+	convm_matrix ='./InvCB6Matrix_V02_PGR_FF.csv'
 
 	! CAMx6.20 compatible ptsource file
 	ptsource_out   = './ptsource_SIMECA-System_2020001.bin'

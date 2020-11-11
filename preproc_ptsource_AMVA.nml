@@ -1,9 +1,12 @@
 &CAMx_Control
 	Run_Message	= "AMVA FF"						! File description
 	Time_Zone	= 5								! Time zone  (5 = EST)
-	emiss_date	= 20001							! YYDDD
+	emis_date	= 18001							! YYDDD
 	nstk		= 1060							! Number of stacks
 	i_nspec		= 210							! Number of inventory species
+
+	conv_fact	= 1000							! Unit conversion factor, emissions must be in g/h
+												! E.g use 1000 to convert an inventory in kg/h to g/h
 /
 
 &file_io
@@ -11,10 +14,10 @@
 	! Stack parameter file
 	ptsource_param = './pointsources_param_AMVA.csv'
 	! Stack emissions file
-	ptsource_emiss = './Input3conparamAMVA.csv'
+	ptsource_emis  = './Input3conparamAMVA.csv'
 
 	! Species conversion matrix
-	convm_matrix ='./InvCB6Matrix_V02_PGR.csv'
+	conv_f_matrix ='./InvCB6Matrix_V02_PGR_FF.csv'
 
 	! CAMx6.20 compatible ptsource file
 	ptsource_out   = './ptsource_AMVA_2018.bin'
