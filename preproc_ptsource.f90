@@ -459,7 +459,7 @@ SUBROUTINE check_alloc_stat(alloc_stat, target)
 IMPLICIT NONE
 
 	INTEGER, INTENT(IN) :: alloc_stat
-	CHARACTER, INTENT(IN) :: target
+	CHARACTER(LEN=*), INTENT(IN) :: target
 
 	IF ( alloc_stat .NE. 0 ) THEN
 		WRITE(0,'(A,A,A)') 'Error allocating ', target, ' check available memory'
@@ -472,8 +472,8 @@ SUBROUTINE check_io_stat(io_stat, target_v, target_f)
 IMPLICIT NONE
 
 	INTEGER, INTENT(IN) :: io_stat
-	CHARACTER, INTENT(IN) :: target_v
-	CHARACTER, INTENT(IN) :: target_f
+	CHARACTER(LEN=*), INTENT(IN) :: target_v
+	CHARACTER(LEN=*), INTENT(IN) :: target_f
 
 	IF ( io_stat > 0 ) THEN
 		WRITE(0,'(A,A,A,A,A)') 'Error reading ', target_v,' from ', target_f, ' file'

@@ -1,0 +1,48 @@
+&CAMx_Control
+	Run_Message	= "CORNARE FF"					! File description
+	Time_Zone	= 5								! Time zone  (5 = EST)
+	emis_date	= 18001							! YYDDD
+	nstk		= 163							! Number of stacks
+	i_nspec		= 210							! Number of inventory species
+
+	conv_fact	= 1000							! Unit conversion factor, emissions must be in g/h
+												! E.g use 1000 to convert an inventory in kg/h to g/h
+/
+
+&file_io
+
+	! Stack parameter file
+	ptsource_param = './pointsources_param_CORNARE.csv'
+	! Stack emissions file
+	ptsource_emis  = './Input3conparamCORNARE.csv'
+
+	! Species conversion matrix
+	conv_f_matrix ='./InvCB6Matrix_V02_PGR_FF.csv'
+
+	! CAMx6.20 compatible ptsource file
+	ptsource_out   = './ptsource_CORNARE_2018.bin'
+
+/
+
+&projection
+
+	Map_Projection				= 'POLAR'		! (LAMBERT,POLAR)
+	UTM_Zone					= 0
+	POLAR_Longitude_Pole		= -75.48		! deg (west<0,south<0)
+	POLAR_Latitude_Pole			= 6.25			! deg (west<0,south<0)
+	LAMBERT_Center_Longitude	= -97.			! deg (west<0,south<0)
+	LAMBERT_Center_Latitude		=  40.			! deg (west<0,south<0)
+	LAMBERT_True_Latitude1		=  33.			! deg (west<0,south<0)
+	LAMBERT_True_Latitude2 		=  45.			! deg (west<0,south<0, can be same as
+												!      LAMBERT_True_Latitude1)
+
+/
+
+&grid
+	Master_Origin_XCoord = -29.50				! km, SW corner of cell (1,1)
+	Master_Origin_YCoord = -29.50				! km, SW corner of cell (1,1)
+	Master_Cell_XSize    = 1.					! km
+	Master_Cell_YSize    = 1.					! km
+	Master_Grid_Columns  = 60					! grid cells in E-W direction
+	Master_Grid_Rows     = 60					! grid cells in N-S direction
+/
